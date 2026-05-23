@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>下单价格核算器</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:"微软雅黑",sans-serif;background:#f5f7fa;padding:10px;}
+.container{width:100%;max-width:100%;background:#fff;border-radius:10px;padding:15px;box-shadow:0 2px 8px #eee;}
+h2{text-align:center;color:#333;margin-bottom:15px;font-size:18px;}
+.box{margin:10px 0;}
+label{display:block;margin-bottom:4px;font-weight:500;color:#444;font-size:14px;}
+input,textarea{width:100%;padding:9px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px;outline:none;background:#fafafa;}
+input:focus,textarea:focus{border-color:#2d8cf0;background:#fff;}
+button{width:100%;background:#2d8cf0;color:#fff;border:none;padding:10px;border-radius:6px;font-size:15px;cursor:pointer;margin-top:5px;}
+button:active{background:#1b76d8;}
+.result{margin-top:15px;padding:12px;border:1px solid #eee;border-radius:8px;line-height:1.7;font-size:14px;white-space:pre-wrap;word-break:break-all;overflow-wrap:break-word;background:#fefefe;}
+.flex-row{display:flex;gap:8px;align-items:flex-end;}
+.flex-row .box{flex:1;margin:0;}
+.tip{color:#999;font-size:12px;margin-top:3px;}
+.copy-btn{width:100%;background:#27ae60;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="container">
+    <h2>下单价格核算器</h2>
+
+    <div class="box">
+        <label>客户姓名</label>
+        <input type="text" id="userName" placeholder="请输入姓名">
+    </div>
+    <div class="box">
+        <label>联系电话</label>
+        <input type="text" id="userPhone" placeholder="请输入手机号码">
+    </div>
+    <div class="box">
+        <label>收货地址</label>
+        <textarea id="userAddr" rows="2" placeholder="请输入详细收货地址"></textarea>
+    </div>
+
+    <div class="box">
+        <label>商品序号(例：1,5x2,10*3)</label>
+        <input type="text" id="numInput" placeholder="逗号分隔支持多份">
+        <div class="tip">支持x/*输入数量，自动识别</div>
+    </div>
+
+    <div class="flex-row">
+        <div class="box">
+            <label>单件优惠,正数减价，负数加价</label>
+            <input type="number" id="discountInput" value="0" min="0" step="0.1">
+        </div>
+        <div style="width:35%">
+            <button onclick="getPrice()">核算</button>
+        </div>
+    </div>
+
+    <div class="box">
+        <label>商品清单</label>
+        <textarea id="goodsNameText" readonly rows="5" placeholder="自动生成商品列表"></textarea>
+    </div>
+
+    <div class="result" id="showResult"></div>
+    <button class="copy-btn" onclick="copyOrder()">一键复制整单</button>
+</div>
+
+<script>
+const goodsData = {
+"1":{name:"百乐红酒",price:15},
+"2":{name:"百乐酸奶",price:15},
+"3":{name:"百乐葡萄",price:15},
+"4":{name:"百乐哈密瓜",price:15},
+"5":{name:"百乐柠檬",price:19},
+"6":{name:"百乐凤梨",price:15},
+"7":{name:"百乐苹果",price:15},
+"8":{name:"百乐橙子",price:15},
+"9":{name:"百乐西瓜",price:15},
+"10":{name:"百乐蔓越莓双爆",price:18},
+"11":{name:"百乐蜂蜜柚子",price:15},
+"12":{name:"百乐姜茶",price:15},
+"13":{name:"百乐红茶",price:15},
+"14":{name:"爱喜果冻",price:15},
+"15":{name:"爱喜口香糖",price:15},
+"16":{name:"爱喜棒棒糖",price:15},
+"17":{name:"爱喜喜马拉雅",price:15},
+"18":{name:"爱喜芒果单",price:15},
+"19":{name:"爱喜朱古力",price:18},
+"20":{name:"爱喜香芋",price:21},
+"21":{name:"爱喜葡萄双爆",price:15},
+"22":{name:"爱喜苹果双爆",price:15},
+"23":{name:"爱喜青柠双爆",price:15},
+"24":{name:"爱喜橙子双爆",price:15},
+"25":{name:"爱喜芒果双爆",price:15},
+"26":{name:"爱喜草莓爆",price:15},
+"27":{name:"爱喜冰淇淋爆",price:15},
+"28":{name:"爱喜镜面幻夜蓝莓",price:15},
+"29":{name:"爱喜冰咖啡爆",price:15},
+"30":{name:"爱喜冰川爆",price:15},
+"31":{name:"爱喜白葡萄酒",price:15},
+"32":{name:"宝恒树叶",price:19},
+"33":{name:"宝恒荔枝薄荷",price:19},
+"34":{name:"宝恒雪茄",price:19},
+"35":{name:"宝恒茅台",price:19},
+"36":{name:"好利时细支黑猫陈皮爆",price:12},
+"37":{name:"好利时中支苹果",price:13},
+"38":{name:"好利时蓝莓双爆",price:13},
+"39":{name:"阿凡达香蕉",price:14},
+"40":{name:"阿凡达哈密瓜",price:14},
+"41":{name:"阿米go水果混合",price:14},
+"42":{name:"阿米go咖啡",price:16},
+"43":{name:"阿米go香芋",price:16},
+"44":{name:"阿米go青柠",price:16},
+"45":{name:"铁塔猫红酒",price:17},
+"46":{name:"铁塔猫酸奶",price:17},
+"47":{name:"铁塔猫冰橙",price:17},
+"48":{name:"铁塔猫冰果",price:17},
+"49":{name:"铁塔猫海盐",price:12},
+"50":{name:"555蓝",price:18},
+"51":{name:"铁塔猫橙子咖啡双爆",price:22},
+"52":{name:"细铁塔猫烟花葡萄",price:17},
+"53":{name:"细铁塔猫烟花芒果",price:17},
+"54":{name:"铁塔猫蜂蜜双爆",price:18},
+"55":{name:"铁塔猫酸奶双爆",price:18},
+"56":{name:"铁塔猫鲜奶油",price:17},
+"57":{name:"铁塔猫水蜜桃",price:17},
+"58":{name:"铁塔猫绿茶",price:17},
+"59":{name:"铁塔猫咖啡",price:17},
+"60":{name:"铁塔猫五味象之谜",price:19},
+"61":{name:"铁塔猫日月爆",price:19},
+"62":{name:"黑杰克柠檬",price:12},
+"63":{name:"黑杰克凤梨",price:12},
+"64":{name:"黑杰克青柠",price:12},
+"65":{name:"蓝星甜嘴",price:17},
+"66":{name:"蓝星香芋",price:17},
+"67":{name:"蓝星冰激凌",price:17},
+"68":{name:"蓝星三味爆",price:18},
+"69":{name:"万宝路白万",price:19},
+"70":{name:"万宝路红万",price:19},
+"71":{name:"船长黄",price:14},
+"72":{name:"日版船长藏红花",price:16},
+"73":{name:"日版船长青苹果",price:16},
+"74":{name:"日版船长天堂茶",price:16},
+"75":{name:"老船长五星樱桃",price:15},
+"76":{name:"老船长五星香草",price:15},
+"77":{name:"DJ草莓",price:12},
+"78":{name:"DJ陈皮",price:12},
+"79":{name:"贵族黑超长",price:17},
+"80":{name:"贵族白超长",price:17},
+"81":{name:"法老粗",price:15},
+"82":{name:"查普曼咖啡",price:19},
+"83":{name:"查普曼樱桃",price:19},
+"84":{name:"查普曼葡萄",price:19},
+"85":{name:"迪宝路5mg蓝莓爆",price:13},
+"86":{name:"优雅双苹果",price:13},
+"87":{name:"优雅原味",price:12},
+"88":{name:"人缘香蕉",price:16},
+"89":{name:"侧推香蕉",price:17},
+"90":{name:"星空椰子",price:18},
+"91":{name:"星空菠萝",price:22},
+"92":{name:"小丑",price:17},
+"93":{name:"黑细云斯顿",price:19},
+"94":{name:"国王彩虹芒果",price:13},
+"95":{name:"国王彩虹樱桃",price:13},
+"97":{name:"民主党加长咖啡",price:16},
+"98":{name:"民主党加长樱桃",price:16},
+"99":{name:"紧身衣草莓",price:14},
+"100":{name:"紧身衣巧克力",price:14},
+"101":{name:"卡比龙～黑色总裁",price:50},
+"102":{name:"卡比龙～白色总裁",price:50},
+"103":{name:"卡比龙～灰色总裁",price:50},
+"104":{name:"卡比龙～绿色总裁",price:54},
+"105":{name:"卡比龙～金色总裁",price:56},
+"107":{name:"卡比龙黑色～中长支",price:28},
+"108":{name:"卡比龙白色～中长支",price:23},
+"109":{name:"卡比龙绿色～中长支",price:28},
+"110":{name:"卡比龙香草～中长支",price:30},
+"111":{name:"卡比龙樱桃～中长支",price:30},
+"112":{name:"卡比龙巧克力中长支",price:30},
+"113":{name:"卡比龙巧克力粗支",price:25},
+"114":{name:"卡比龙香草～粗支",price:25},
+"115":{name:"卡比龙樱桃～粗支",price:25},
+"116":{name:"大华黄金眼",price:17},
+"117":{name:"阿拉伯蓝骆驼",price:19},
+"118":{name:"钻石粉",price:19},
+"119":{name:"钻石黑",price:19},
+"120":{name:"蓝星西柚",price:17},
+"121":{name:"蓝星芒果",price:17},
+"122":{name:"骆驼俄版",price:24},
+"123":{name:"铁盒猫头鹰",price:22},
+"124":{name:"梦都柠檬",price:12},
+"125":{name:"梦都葡萄",price:12},
+"126":{name:"梦都樱桃",price:12},
+"127":{name:"黑魔鬼2000",price:17},
+"128":{name:"铁盒法老",price:22},
+"129":{name:"cat粉猫",price:12},
+"130":{name:"大卫杜夫红",price:15},
+"131":{name:"大卫杜夫白",price:15},
+"132":{name:"大卫杜夫蓝",price:15},
+"133":{name:"莫丽恩橙子爆",price:15},
+"134":{name:"寂寞啪啪啪",price:14},
+"135":{name:"米兰6味爆",price:15},
+"136":{name:"米兰彩虹双爆",price:12},
+"137":{name:"米兰蓝莓双爆",price:12},
+"138":{name:"百乐椰子",price:15},
+"139":{name:"深鼓～深蓝",price:70},
+"140":{name:"浅鼓～浅蓝",price:70},
+"141":{name:"马坝～葡萄",price:50},
+"142":{name:"马坝～咖啡",price:50},
+"143":{name:"马坝～冰茶",price:50},
+"144":{name:"马坝～苹果",price:50},
+"145":{name:"马坝～原味",price:50},
+"146":{name:"马坝三星～黑梅",price:50},
+"147":{name:"马坝三星～巧克",price:50},
+"148":{name:"马坝～优妮塔斯甜李子",price:50},
+"149":{name:"马坝～优秀异国日出",price:50},
+"150":{name:"马坝～皇家水果",price:50},
+"151":{name:"丰收～樱桃",price:50},
+"152":{name:"丰收～咖啡",price:50},
+"153":{name:"帆船～黄",price:50},
+"154":{name:"帆船～绿",price:50},
+"155":{name:"百乐榴莲",price:18},
+"156":{name:"卡比龙简装黑粗",price:20},
+"157":{name:"卡比龙简装黑细",price:20},
+"158":{name:"卡比龙简装蓝",price:22},
+"159":{name:"欧版草莓万宝路",price:19},
+"160":{name:"欧版黑冰单爆万",price:19},
+"161":{name:"法拉利柠檬",price:13},
+"162":{name:"法拉利巧克",price:13},
+"163":{name:"卡比龙简装白粗",price:18},
+"164":{name:"卡比龙简装白细",price:18},
+"165":{name:"复古波斯香草",price:14},
+"166":{name:"复古波斯咖啡",price:14},
+"167":{name:"复古波斯樱桃",price:14},
+"168":{name:"多乐蓝锦鲤",price:12},
+"169":{name:"多乐侧推绿",price:12},
+"170":{name:"欧盟无嘴骆驼",price:30},
+"171":{name:"天马葡萄",price:12},
+"172":{name:"天马樱桃",price:12},
+"173":{name:"天马木糖醇",price:12},
+"174":{name:"天马白苹果",price:12},
+"175":{name:"天马薄荷",price:12},
+"176":{name:"天马草莓",price:12},
+"177":{name:"阿里山茉莉",price:19},
+"178":{name:"阿里山桂花",price:19},
+"179":{name:"阿里山金山",price:14},
+"180":{name:"阿里山红山",price:14},
+"181":{name:"口红BOSS水蜜桃双爆",price:17},
+"182":{name:"口红BOSS哈密瓜双爆",price:17},
+"183":{name:"卡比龙黑金",price:75},
+"184":{name:"卡比龙总裁散拼（带礼盒包装）",price:520}
+};
+
+let finalOrderText = "";
+
+function getPrice(){
+    let userName = document.getElementById("userName").value;
+    let userPhone = document.getElementById("userPhone").value;
+    let userAddr = document.getElementById("userAddr").value;
+    let inputVal = document.getElementById("numInput").value.trim();
+    let discount = parseFloat(document.getElementById("discountInput").value) || 0;
+    let resDom = document.getElementById("showResult");
+    let nameText = document.getElementById("goodsNameText");
+
+    if(!inputVal){
+        resDom.innerText = "请输入商品序号！";
+        nameText.value = "";
+        return;
+    }
+
+    inputVal = inputVal.replace(/，/g,",").replace(/\s+/g,"");
+    let items = inputVal.split(",");
+    let priceExprArr = [];
+    let nameShowArr = [];
+    let numShowArr = [];
+    let totalCount = 0;
+    let allTotal = 0;
+    let errTip = "";
+
+    items.forEach(item=>{
+        item = item.trim();
+        if(!item) return;
+        let times = 1;
+        let n;
+        if(item.includes("x") || item.includes("*")){
+            let parts = item.split(/[x*]/);
+            n = parts[0].trim();
+            times = parseInt(parts[1])||1;
+        }else{
+            n = item;
+        }
+        let key = n;
+        if(goodsData[key]){
+            let ori = goodsData[key].price;
+            let singleSale = Math.max(ori - discount,0);
+            allTotal += singleSale * times;
+            if(times === 1){
+                priceExprArr.push(singleSale+"");
+            }else{
+                priceExprArr.push(singleSale+"×"+times);
+            }
+            nameShowArr.push(`${goodsData[key].name} x${times}`);
+            numShowArr.push(times>1?`${n}x${times}`:n);
+            totalCount += times;
+        }else{
+            errTip += `序号${n}：无此商品\n`;
+        }
+    });
+
+    let saleStr = priceExprArr.join("+")+"="+allTotal;
+    nameText.value = nameShowArr.join("\n");
+
+    finalOrderText = "";
+    finalOrderText += `姓名：${userName}\n`;
+    finalOrderText += `电话：${userPhone}\n`;
+    finalOrderText += `地址：${userAddr}\n\n`;
+    finalOrderText += numShowArr.join("，")+"\n";
+    finalOrderText += `共${totalCount}包\n`;
+    finalOrderText += saleStr;
+
+    resDom.innerText = errTip + finalOrderText;
+}
+
+function copyOrder(){
+    if(!finalOrderText){
+        alert("请先核算订单");
+        return;
+    }
+    navigator.clipboard.writeText(finalOrderText).then(()=>{
+        alert("复制成功");
+    }).catch(()=>{
+        alert("复制失败手动复制");
+    });
+}
+</script>
+</body>
+</html>
